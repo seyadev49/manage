@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Users, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Tenant } from './types';
-import { TenantCard } from './components/TenantCard';
 import { TenantFormModal } from './components/TenantFormModal';
 import { TerminateTenantModal } from './components/TerminateTenantModal';
 import { TenantDetailsModal } from './components/TenantDetailsModal';
 import { RenewContractModal } from './components/RenewContractModal';
 import { ContractHistoryModal } from './components/ContractHistoryModal';
+import { ActiveTenantsTab } from './tabs/ActiveTenantsTab';
+import { TerminatedTenantsTab } from './tabs/TerminatedTenantsTab';
 import { useApiWithLimitCheck } from '../../hooks/useApiWithLimitCheck';
 import toast from 'react-hot-toast';
 
@@ -64,14 +65,6 @@ const TenantsPage: React.FC = () => {
     leaseDuration: '12',
     notes: '',
   });
-
-  const isTenantTerminated = (tenant: Tenant): boolean => {
-    return tenant.is_active === 0 || !!(tenant.termination_date || tenant.status === 'terminated');
-  };
-
-  const isTenantActive = (tenant: Tenant): boolean => {
-    return !isTenantTerminated(tenant);
-  };
 
   const fetchTenants = useCallback(async () => {
     try {
@@ -259,24 +252,10 @@ const TenantsPage: React.FC = () => {
       );
       if (response && (response.tenant || response.message?.includes("successfully"))) {
         toast.success('✅ Tenant terminated successfully!');
-        // Update the tenant status in our local state
-        setAllTenants(prev =>
-          prev.map(t =>
-            t.id === terminatingTenant.id
-              ? {
-                  ...t,
-                  termination_date: terminationFormData.terminationDate,
-                  status: 'terminated',
-                  is_active: 0,
-                  termination_reason: terminationFormData.terminationReason,
-                  termination_notes: terminationFormData.notes
-                }
-              : t
-          )
-        );
         setShowTerminateModal(false);
         setTerminatingTenant(null);
         resetTerminationForm();
+        fetchTenants();
       } else {
         throw new Error(response?.message || 'Failed to terminate tenant');
       }
@@ -367,22 +346,6 @@ const TenantsPage: React.FC = () => {
     setShowTenantModal(true);
   };
 
-  const getFilteredTenants = () => {
-    return allTenants.filter(tenant => {
-      const matchesSearch =
-        tenant.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tenant.tenant_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tenant.phone?.includes(searchTerm) ||
-        tenant.city?.toLowerCase().includes(searchTerm.toLowerCase());
-
-      if (activeTab === 'active') {
-        return matchesSearch && tenant.is_active !== 0 && !tenant.termination_date && tenant.status !== 'terminated';
-      } else {
-        return matchesSearch && (tenant.is_active === 0 || tenant.termination_date || tenant.status === 'terminated');
-      }
-    });
-  };
-
   const activeCount = allTenants.filter(tenant =>
     tenant.is_active !== 0 && !tenant.termination_date && tenant.status !== 'terminated'
   ).length;
@@ -457,33 +420,26 @@ const TenantsPage: React.FC = () => {
         </nav>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {getFilteredTenants().map((tenant) => (
-          <TenantCard
-            key={tenant.id}
-            tenant={tenant}
-            activeTab={activeTab}
-            openTenantModal={openTenantModal}
-            handleEdit={handleEdit}
-            handleTerminate={handleTerminate}
-            handleRenew={handleRenew}
-            handleViewHistory={handleViewHistory}
-          />
-        ))}
-      </div>
-
-      {getFilteredTenants().length === 0 && (
-        <div className="text-center py-12">
-          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            No {activeTab} tenants found
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {activeTab === 'active'
-              ? 'Try adjusting your search or add a new tenant'
-              : 'No terminated tenants match your search criteria'}
-          </p>
-        </div>
+      {activeTab === 'active' ? (
+        <ActiveTenantsTab
+          tenants={allTenants}
+          searchTerm={searchTerm}
+          onTenantClick={openTenantModal}
+          onEdit={handleEdit}
+          onTerminate={handleTerminate}
+          onRenew={handleRenew}
+          onViewHistory={handleViewHistory}
+          onDelete={handleDelete}
+        />
+      ) : (
+        <TerminatedTenantsTab
+          tenants={allTenants}
+          searchTerm={searchTerm}
+          onTenantClick={openTenantModal}
+          onEdit={handleEdit}
+          onViewHistory={handleViewHistory}
+          onDelete={handleDelete}
+        />
       )}
 
       <TenantDetailsModal
