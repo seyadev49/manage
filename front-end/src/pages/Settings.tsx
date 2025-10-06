@@ -476,44 +476,60 @@ const Settings: React.FC = () => {
                 </span>
               </div>
 
-              {/* Next Renewal */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Next Renewal</span>
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400 mr-1" />
-                  <span className="text-sm text-gray-900 dark:text-white">
-                    {new Date(subscriptionDetails.next_renewal_date).toLocaleDateString()}
-                  </span>
+              {/* Next Renewal or Trial Remaining */}
+              {subscriptionDetails.subscription_status.toLowerCase() === 'trial' ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Trial Period</span>
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400 mr-1" />
+                    <span className="text-sm text-gray-900 dark:text-white">
+                      {subscriptionDetails.daysUntilRenewal > 0
+                        ? `${subscriptionDetails.daysUntilRenewal} days remaining`
+                        : 'Expired'}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Next Renewal</span>
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400 mr-1" />
+                      <span className="text-sm text-gray-900 dark:text-white">
+                        {new Date(subscriptionDetails.next_renewal_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Days Until Renewal */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Days Until Renewal</span>
-                <span className={`text-sm font-semibold ${
-                  subscriptionDetails.daysUntilRenewal <= 7 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'
-                }`}>
-                  {subscriptionDetails.daysUntilRenewal} days
-                </span>
-              </div>
+                  {/* Days Until Renewal */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Days Until Renewal</span>
+                    <span className={`text-sm font-semibold ${
+                      subscriptionDetails.daysUntilRenewal <= 7 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'
+                    }`}>
+                      {subscriptionDetails.daysUntilRenewal} days
+                    </span>
+                  </div>
+                </>
+              )}
 
-              {/* Upgrade Button */}
+              {/* Action Buttons */}
 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
   <div className="space-y-2">
-    {/* Show Renew button only if renewal is near or overdue */}
-    {subscriptionDetails.daysUntilRenewal <= 30 && (
+    {/* Show Renew button only for active/paid users when renewal is near or overdue */}
+    {subscriptionDetails.subscription_status.toLowerCase() !== 'trial' && subscriptionDetails.daysUntilRenewal <= 30 && (
       <button
         onClick={() => {
           if (
             !subscriptionDetails.alreadyRenewed &&
-            subscriptionDetails.daysUntilRenewal <= 7 // allow overdue + near due only
+            subscriptionDetails.daysUntilRenewal <= 7
           ) {
             setShowRenewModal(true);
           }
         }}
         disabled={
           subscriptionDetails.alreadyRenewed ||
-          subscriptionDetails.daysUntilRenewal > 7 // block "Early Renew"
+          subscriptionDetails.daysUntilRenewal > 7
         }
         className={`w-full px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center ${
           subscriptionDetails.alreadyRenewed || subscriptionDetails.daysUntilRenewal > 7
@@ -534,18 +550,19 @@ const Settings: React.FC = () => {
       </button>
     )}
 
-
-    {/* Upgrade Button */}
+    {/* Upgrade Button - Show for trial users or active users wanting to upgrade */}
     <button
       onClick={() => setShowUpgradeModal(true)}
-      disabled={subscriptionDetails.subscription_status !== 'active'}
       className={`w-full px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center ${
-        subscriptionDetails.subscription_status === 'active'
+        subscriptionDetails.subscription_status.toLowerCase() === 'trial'
+          ? 'bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white'
+          : subscriptionDetails.subscription_status === 'active'
           ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
           : 'bg-gray-400 text-gray-700 cursor-not-allowed'
       }`}
+      disabled={subscriptionDetails.subscription_status !== 'active' && subscriptionDetails.subscription_status.toLowerCase() !== 'trial'}
     >
-      Upgrade Plan
+      {subscriptionDetails.subscription_status.toLowerCase() === 'trial' ? 'Upgrade to Paid Plan' : 'Upgrade Plan'}
     </button>
   </div>
 </div>

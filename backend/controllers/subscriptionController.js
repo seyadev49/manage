@@ -262,7 +262,7 @@ const renewSubscription = async (req, res) => {
 const getSubscriptionStatus = async (req, res) => {
   try {
     const [organizations] = await db.execute(
-      `SELECT subscription_status, subscription_plan, subscription_price, billing_cycle, 
+      `SELECT subscription_status, subscription_plan, subscription_price, billing_cycle,
               next_renewal_date, trial_end_date, overdue_since
        FROM organizations WHERE id = ?`,
       [req.user.organization_id]
@@ -273,19 +273,35 @@ const getSubscriptionStatus = async (req, res) => {
     }
 
     const subscription = organizations[0];
-    
+
     // Calculate days until renewal
     let daysUntilRenewal = null;
-    if (subscription.next_renewal_date) {
+    if (subscription.subscription_status.toLowerCase() === 'trial' && subscription.trial_end_date) {
+      const today = new Date();
+      const trialEndDate = new Date(subscription.trial_end_date);
+      daysUntilRenewal = Math.ceil((trialEndDate - today) / (1000 * 60 * 60 * 24));
+    } else if (subscription.next_renewal_date) {
       const today = new Date();
       const renewalDate = new Date(subscription.next_renewal_date);
       daysUntilRenewal = Math.ceil((renewalDate - today) / (1000 * 60 * 60 * 24));
     }
 
-    res.json({ 
+    // Check if already renewed (has pending_verification status)
+    const [pendingRenewals] = await db.execute(
+      `SELECT COUNT(*) as count FROM subscription_history
+       WHERE organization_id = ?
+       AND status = 'pending_verification'
+       AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+      [req.user.organization_id]
+    );
+
+    const alreadyRenewed = pendingRenewals[0].count > 0;
+
+    res.json({
       subscription: {
         ...subscription,
-        daysUntilRenewal
+        daysUntilRenewal,
+        alreadyRenewed
       }
     });
   } catch (error) {
