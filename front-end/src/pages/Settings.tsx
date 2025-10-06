@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Settings as User, Building2, Bell, Edit2, Save, X, Crown, Calendar, CreditCard, RefreshCw } from 'lucide-react';
+import { Settings as User, Building2, Bell, CreditCard as Edit2, Save, X, Crown, Calendar, CreditCard, RefreshCw } from 'lucide-react';
 import UpgradeModal from '../components/UpgradeModal';
 import RenewSubscriptionModal from '../components/RenewSubscriptionModal';
 import UserManagementSection from '../components/UserManagementSection';
